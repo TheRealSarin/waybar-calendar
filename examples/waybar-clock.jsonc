@@ -1,0 +1,9 @@
+{
+    "clock": {
+        "format": "{:%H:%M}",
+        "format-alt": "{:%a %d %b  %H:%M}",
+        "tooltip-format": "<tt>{calendar}</tt>",
+        "on-scroll-down": "waybar-calendar --toggle",
+        "on-scroll-up": "waybar-calendar --toggle"
+    }
+}
