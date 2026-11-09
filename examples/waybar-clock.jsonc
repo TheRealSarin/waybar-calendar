@@ -1,9 +1,15 @@
 {
-    "clock": {
-        "format": "{:%H:%M}",
-        "format-alt": "{:%a %d %b  %H:%M}",
-        "tooltip-format": "<tt>{calendar}</tt>",
-        "on-scroll-down": "waybar-calendar --toggle",
-        "on-scroll-up": "waybar-calendar --toggle"
+    "modules-center": [
+        "custom/clock"
+    ],
+    "custom/clock": {
+        "exec": "waybar-calendar clock render",
+        "return-type": "json",
+        "interval": 5,
+        "signal": 9,
+        "tooltip": true,
+        "on-click": "waybar-calendar clock toggle",
+        "on-scroll-down": "waybar-calendar clock open",
+        "on-scroll-up": "waybar-calendar clock close"
     }
 }

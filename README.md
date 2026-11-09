@@ -10,12 +10,16 @@ clicks or typing. This is a separate layer-shell window, so it can.
 
 ## Features
 
-- Month grid with today, the selected day, holidays and days that have content
-  all marked differently.
-- Timed or all-day entries per day, added and removed in the panel.
+- Month grid with today, the selected day, weekends, holidays and days that
+  have something on them all marked differently.
+- Timed or all-day entries per day. The time is set by hovering the hour and
+  minute fields and scrolling, not by typing.
 - One free-text note per day, saved as you type.
 - UK bank holidays from `https://www.gov.uk/bank-holidays.json`, fetched in the
   background, cached on disk and usable offline.
+- A replacement clock module with two states: time only shows a calendar
+  preview on hover, and time with date opens the panel on scroll. The preview
+  and the panel never fight over the same gesture.
 - Single instance with a toggle, so the same bar action opens and closes it.
 - Styled in plain CSS in one file.
 
@@ -46,14 +50,42 @@ update. You can also run it straight from a checkout with
 
 ## Wiring it into Waybar
 
-Add the scroll actions to your clock module, as in
+Replace the built-in clock with the module this ships, as in
 [`examples/waybar-clock.jsonc`](examples/waybar-clock.jsonc):
+
+```jsonc
+"custom/clock": {
+    "exec": "waybar-calendar clock render",
+    "return-type": "json",
+    "interval": 5,
+    "signal": 9,
+    "tooltip": true,
+    "on-click": "waybar-calendar clock toggle",
+    "on-scroll-down": "waybar-calendar clock open",
+    "on-scroll-up": "waybar-calendar clock close"
+}
+```
+
+The module has two states and clicking swaps them:
+
+| State | Shows | Hover | Scroll down | Scroll up |
+| --- | --- | --- | --- | --- |
+| `time` | `20:15` | Calendar preview with today, holidays and busy days marked | Nothing | Nothing |
+| `full` | `Mon 09 Nov  20:15` | Nothing, the date is already on the bar | Opens the panel | Closes it |
+
+Clicking back to the time state also closes the panel. Clicking away from the
+panel does not, so you can copy out of it.
+
+Waybar sets the state as a CSS class, so `#custom-clock` and
+`#custom-clock.full` can be styled differently.
+
+If you would rather keep Waybar's own clock, bind the panel directly instead
+and accept that the tooltip and the panel both answer to the clock:
 
 ```jsonc
 "clock": {
     "format": "{:%H:%M}",
-    "on-scroll-down": "waybar-calendar --toggle",
-    "on-scroll-up": "waybar-calendar --toggle"
+    "on-scroll-down": "waybar-calendar --toggle"
 }
 ```
 
@@ -101,6 +133,9 @@ panel opening. See [`examples/config.json`](examples/config.json).
 | `holiday_url` | gov.uk feed | Must be http or https. |
 | `holiday_max_age_days` | `7` | How old the cache may get before a refresh is attempted. |
 | `holiday_timeout` | `10.0` | Seconds to wait for the feed. |
+| `clock_format` | `%H:%M` | `strftime` format for the clock module's time state. |
+| `clock_alt_format` | `%a %d %b  %H:%M` | `strftime` format for its date state. |
+| `clock_signal` | `9` | Real-time signal used to refresh Waybar when the state changes. Must match `signal` in the module. |
 
 GTK 3 reports monitor *models*, not connector names, so `monitor` will not
 match `HDMI-A-1`. Run `waybar-calendar --list-monitors` to see what it can
@@ -123,6 +158,7 @@ Dark palette.
 | `${XDG_DATA_HOME:-~/.local/share}/waybar-calendar/events.json` | Your entries and notes |
 | `${XDG_CACHE_HOME:-~/.cache}/waybar-calendar/holidays.json` | Cached holiday feed |
 | `${XDG_RUNTIME_DIR}/waybar-calendar/panel.lock` | Single-instance lock |
+| `${XDG_RUNTIME_DIR}/waybar-calendar/clock-state` | Which state the clock module is in |
 
 `events.json` is plain JSON keyed by ISO date, written atomically, and days
 that end up with no entries and no note are dropped:
@@ -142,11 +178,15 @@ that end up with no entries and no note are dropped:
 | --- | --- |
 | Click a day | Select it and show its entries and note |
 | `‹` `›` `today` | Move between months |
-| Type a time and title, then Enter or `+` | Add an entry. A blank time means all day. |
+| Scroll over the hour or minute | Change the time, wrapping at both ends |
+| `all day` | Drop the time from the entry being added |
+| Type a title, then Enter or `Add` | Add the entry to the selected day |
 | `×` on an entry | Remove it |
 | `Escape` | Close the panel |
+| Scroll up on the clock, or click it back to time | Close the panel |
 
-A time that is not `HH:MM` turns the time box red and nothing is saved.
+Minutes move in steps of five. An entry with no title is refused and the title
+box turns red.
 
 ## Development
 
