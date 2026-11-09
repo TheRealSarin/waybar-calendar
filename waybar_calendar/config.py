@@ -40,6 +40,9 @@ class Config:
     holiday_url: str = DEFAULT_HOLIDAY_URL
     holiday_max_age_days: int = 7
     holiday_timeout: float = 10.0
+    clock_format: str = "%H:%M"
+    clock_alt_format: str = "%a %d %b  %H:%M"
+    clock_signal: int = 9
 
     @property
     def events_file(self):
@@ -52,6 +55,10 @@ class Config:
     @property
     def lock_file(self):
         return os.path.join(runtime_dir(), "panel.lock")
+
+    @property
+    def clock_state_file(self):
+        return os.path.join(runtime_dir(), "clock-state")
 
     @property
     def holiday_max_age_seconds(self):
@@ -67,6 +74,9 @@ _FIELD_TYPES = {
     "holiday_url": str,
     "holiday_max_age_days": int,
     "holiday_timeout": float,
+    "clock_format": str,
+    "clock_alt_format": str,
+    "clock_signal": int,
 }
 
 
@@ -87,6 +97,10 @@ def _coerce(key, value):
     if key == "holiday_timeout" and not 0 < value <= 120:
         return None
     if key == "region" and not value:
+        return None
+    if key == "clock_signal" and not 1 <= value <= 30:
+        return None
+    if key in ("clock_format", "clock_alt_format") and not value:
         return None
     return value
 

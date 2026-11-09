@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 from waybar_calendar.lock import InstanceLock
@@ -73,3 +74,25 @@ class InstanceLockTest(unittest.TestCase):
         with open(self.path, "w", encoding="utf-8") as handle:
             handle.write("not a pid")
         self.assertIsNone(InstanceLock(self.path).running_pid())
+
+    def test_pid_belonging_to_another_program_is_not_ours_to_kill(self):
+        with open(self.path, "w", encoding="utf-8") as handle:
+            handle.write("1")
+        lock = InstanceLock(self.path)
+        self.assertIsNone(lock.running_pid())
+        self.assertFalse(lock.terminate_running())
+
+    def test_acquire_with_a_timeout_still_refuses_a_held_lock(self):
+        holder = subprocess.Popen(
+            [sys.executable, "-c", HOLDER, self.path, self.repo],
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            self.assertEqual(holder.stdout.readline().strip(), "locked")
+            started = time.monotonic()
+            self.assertFalse(InstanceLock(self.path).acquire(timeout=0.2))
+            self.assertGreaterEqual(time.monotonic() - started, 0.2)
+        finally:
+            holder.kill()
+            holder.wait(timeout=5)

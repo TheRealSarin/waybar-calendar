@@ -2,8 +2,12 @@ import fcntl
 import logging
 import os
 import signal
+import time
 
 LOG = logging.getLogger(__name__)
+
+PROCESS_MARKER = "waybar_calendar"
+ACQUIRE_POLL_SECONDS = 0.05
 
 
 class InstanceLock:
@@ -11,7 +15,16 @@ class InstanceLock:
         self.path = path
         self._handle = None
 
-    def acquire(self):
+    def acquire(self, timeout=0.0):
+        deadline = time.monotonic() + timeout
+        while True:
+            if self._try_acquire():
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(ACQUIRE_POLL_SECONDS)
+
+    def _try_acquire(self):
         directory = os.path.dirname(self.path)
         if directory:
             os.makedirs(directory, exist_ok=True)
@@ -41,7 +54,7 @@ class InstanceLock:
                 pid = int(handle.read().strip())
         except (OSError, ValueError):
             return None
-        if pid <= 0:
+        if pid <= 0 or not _is_panel_process(pid):
             return None
         try:
             os.kill(pid, 0)
@@ -59,3 +72,12 @@ class InstanceLock:
             LOG.warning("could not stop running panel %s: %s", pid, error)
             return False
         return True
+
+
+def _is_panel_process(pid):
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as handle:
+            command = handle.read().decode("utf-8", "replace")
+    except OSError:
+        return False
+    return PROCESS_MARKER in command

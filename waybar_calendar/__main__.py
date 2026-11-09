@@ -7,6 +7,8 @@ from .lock import InstanceLock
 
 LOG = logging.getLogger("waybar-calendar")
 
+OPEN_TIMEOUT_SECONDS = 1.0
+
 
 def build_parser():
     parser = argparse.ArgumentParser(
@@ -25,6 +27,17 @@ def build_parser():
         help="print the monitors GTK can see and exit",
     )
     parser.add_argument("--verbose", action="store_true", help="log debug output")
+
+    commands = parser.add_subparsers(dest="command")
+    clock = commands.add_parser(
+        "clock", help="waybar clock module that gates the panel behind its own state"
+    )
+    clock.add_argument(
+        "action",
+        choices=("render", "toggle", "open", "close"),
+        help="render prints the module JSON, toggle swaps time and date view, "
+        "open shows the panel only while the date view is showing, close hides it",
+    )
     return parser
 
 
@@ -52,12 +65,40 @@ def main(argv=None):
     config = load_config(args.config)
     if args.list_monitors:
         return _print_monitors()
+
+    if args.command == "clock":
+        return _run_clock(config, args.action)
+    if args.toggle and _close_panel(config):
+        return 0
+    return _open_panel(config)
+
+
+def _run_clock(config, action):
+    from . import clock
+
+    if action == "render":
+        return clock.run_render(config)
+    if action == "toggle":
+        if clock.run_toggle(config) == clock.STATE_TIME:
+            _close_panel(config)
+        return 0
+    if action == "close":
+        _close_panel(config)
+        return 0
+    if not clock.should_open_panel(config):
+        return 0
+    return _open_panel(config)
+
+
+def _close_panel(config):
+    return InstanceLock(config.lock_file).terminate_running()
+
+
+def _open_panel(config):
     lock = InstanceLock(config.lock_file)
-    if not lock.acquire():
-        if args.toggle and lock.terminate_running():
-            return 0
-        LOG.error("a panel is already running and could not be stopped")
-        return 1
+    if not lock.acquire(timeout=OPEN_TIMEOUT_SECONDS):
+        LOG.info("the panel is already open")
+        return 0
     try:
         from .panel import run
     except ImportError as error:
