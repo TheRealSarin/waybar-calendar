@@ -8,6 +8,8 @@ and see UK bank holidays pulled from the official gov.uk feed.
 Waybar's own clock tooltip can draw a calendar, but a tooltip cannot take
 clicks or typing. This is a separate layer-shell window, so it can.
 
+![The panel open under a Waybar bar](docs/screenshot.webp)
+
 ## Features
 
 - Month grid with today, the selected day, weekends, holidays and days that
@@ -143,10 +145,12 @@ match, and use `monitor_index` when two screens share a model:
 
 ```
 $ waybar-calendar --list-monitors
-0  'MSI MP2412'  'Microstep'  1920x1080+1920+0
-1  'MSI MP275 E2'  'Microstep'  1920x1080+0+0
-2  'MSI MP2412'  'Microstep'  1920x1080+-1920+0
+0  'DELL U2415'  'Dell Inc.'  1920x1200+1920+0
+1  'LG ULTRAGEAR'  'LG Electronics'  2560x1440+0+0
+2  'DELL U2415'  'Dell Inc.'  1920x1200+-1920+0
 ```
+
+Monitors 0 and 2 share a model, so only `monitor_index` can tell them apart.
 
 Styling lives in `waybar_calendar/style.css`. The defaults follow the GitHub
 Dark palette.
