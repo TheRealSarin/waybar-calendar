@@ -1,6 +1,6 @@
 {
     "region": "england-and-wales",
-    "monitor": "HDMI-A-1",
+    "monitor_index": 1,
     "margin_top": 46,
     "first_weekday": 0,
     "holiday_max_age_days": 7

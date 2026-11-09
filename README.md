@@ -93,13 +93,25 @@ panel opening. See [`examples/config.json`](examples/config.json).
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `region` | `england-and-wales` | Which gov.uk division to read holidays from. Also accepts `scotland` and `northern-ireland`. |
-| `monitor` | `""` | Connector name, such as `HDMI-A-1`. Empty means the compositor decides. |
+| `region` | `england-and-wales` | Which gov.uk division to read holidays from. Also accepts `scotland` and `northern-ireland`. Only that division's holidays are marked. |
+| `monitor` | `""` | Monitor model to open on, for example `MSI MP275 E2`. Empty means the compositor decides. |
+| `monitor_index` | `-1` | Monitor number to open on. Takes priority over `monitor`. `-1` means unset. |
 | `margin_top` | `46` | Gap in pixels below the top edge, so the panel clears your bar. |
 | `first_weekday` | `0` | `0` is Monday, `6` is Sunday. |
 | `holiday_url` | gov.uk feed | Must be http or https. |
 | `holiday_max_age_days` | `7` | How old the cache may get before a refresh is attempted. |
 | `holiday_timeout` | `10.0` | Seconds to wait for the feed. |
+
+GTK 3 reports monitor *models*, not connector names, so `monitor` will not
+match `HDMI-A-1`. Run `waybar-calendar --list-monitors` to see what it can
+match, and use `monitor_index` when two screens share a model:
+
+```
+$ waybar-calendar --list-monitors
+0  'MSI MP2412'  'Microstep'  1920x1080+1920+0
+1  'MSI MP275 E2'  'Microstep'  1920x1080+0+0
+2  'MSI MP2412'  'Microstep'  1920x1080+-1920+0
+```
 
 Styling lives in `waybar_calendar/style.css`. The defaults follow the GitHub
 Dark palette.
