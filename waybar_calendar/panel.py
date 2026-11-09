@@ -20,7 +20,43 @@ LOG = logging.getLogger(__name__)
 
 NAMESPACE = "calendar-panel"
 NOTE_SAVE_DELAY_MS = 400
+ALL_DAY_LABEL = "all day"
+PADDING = 28
+DEFAULT_HOUR = 9
+MINUTE_STEP = 5
+NOTES_PLACEHOLDER = "Anything worth remembering about this day"
 STYLE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "style.css")
+
+
+class ScrollField(Gtk.EventBox):
+    def __init__(self, maximum, step, value=0):
+        super().__init__()
+        self.maximum = maximum
+        self.step = step
+        self.value = value
+        self.label = Gtk.Label(label=f"{value:02d}")
+        self.label.get_style_context().add_class("scroll-value")
+        self.add(self.label)
+        self.get_style_context().add_class("scroll-field")
+        self.add_events(Gdk.EventMask.SCROLL_MASK | Gdk.EventMask.SMOOTH_SCROLL_MASK)
+        self.connect("scroll-event", self._on_scroll)
+
+    def set_value(self, value):
+        self.value = value % self.maximum
+        self.label.set_text(f"{self.value:02d}")
+
+    def _on_scroll(self, _widget, event):
+        direction = event.direction
+        if direction == Gdk.ScrollDirection.SMOOTH:
+            _, _, delta_y = event.get_scroll_deltas()
+            if delta_y == 0:
+                return True
+            direction = Gdk.ScrollDirection.DOWN if delta_y > 0 else Gdk.ScrollDirection.UP
+        if direction == Gdk.ScrollDirection.UP:
+            self.set_value(self.value + self.step)
+        elif direction == Gdk.ScrollDirection.DOWN:
+            self.set_value(self.value - self.step)
+        return True
 
 
 def describe_monitors():
@@ -116,43 +152,53 @@ class Panel(Gtk.Window):
         self.connect("destroy", self._on_destroy)
         self.connect("key-press-event", self._on_key_press)
 
-        root = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        root = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=PADDING // 2)
         root.get_style_context().add_class("panel")
-        root.set_border_width(16)
         self.add(root)
 
-        root.pack_start(self._build_month_side(), False, False, 0)
-        root.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 0)
-        root.pack_start(self._build_day_side(), True, True, 0)
+        month_side = self._build_month_side()
+        month_side.set_margin_start(PADDING)
+        separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        day_side = self._build_day_side()
+        day_side.set_margin_end(PADDING)
+        for child in (month_side, separator, day_side):
+            child.set_margin_top(PADDING)
+            child.set_margin_bottom(PADDING)
+        root.pack_start(month_side, False, False, 0)
+        root.pack_start(separator, False, False, 0)
+        root.pack_start(day_side, True, True, 0)
         self.show_all()
         self.title_input.grab_focus()
 
     def _build_month_side(self):
-        side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        side.set_valign(Gtk.Align.CENTER)
 
-        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.pack_start(self._nav_button("‹", self._on_previous_month), False, False, 0)
         self.month_label = Gtk.Label()
-        self.month_label.get_style_context().add_class("title")
+        self.month_label.get_style_context().add_class("month-title")
         header.pack_start(self.month_label, True, True, 0)
         header.pack_start(self._nav_button("›", self._on_next_month), False, False, 0)
         header.pack_start(self._nav_button("today", self._on_today), False, False, 0)
         side.pack_start(header, False, False, 0)
 
-        grid = Gtk.Grid(column_homogeneous=True, row_spacing=2, column_spacing=2)
+        grid = Gtk.Grid(column_homogeneous=True, row_spacing=6, column_spacing=6)
         for column, name in enumerate(weekday_labels(self.config.first_weekday)):
             label = Gtk.Label(label=name)
-            label.get_style_context().add_class("dow")
+            label.get_style_context().add_class("weekday")
             grid.attach(label, column, 0, 1, 1)
 
         for index in range(CELL_COUNT):
             button = Gtk.Button()
             button.get_style_context().add_class("day")
             button.connect("clicked", self._on_select_day, index)
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            box.set_valign(Gtk.Align.CENTER)
             number = Gtk.Label()
             number.get_style_context().add_class("day-number")
-            marker = Gtk.Label(label="•")
+            marker = Gtk.Label(label="●")
+            marker.get_style_context().add_class("marker")
             box.pack_start(number, False, False, 0)
             box.pack_start(marker, False, False, 0)
             button.add(box)
@@ -163,56 +209,89 @@ class Panel(Gtk.Window):
         return side
 
     def _build_day_side(self):
-        side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        side.set_size_request(320, -1)
+        side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        side.set_size_request(400, -1)
 
+        heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         self.day_label = Gtk.Label(xalign=0)
-        self.day_label.get_style_context().add_class("title")
-        side.pack_start(self.day_label, False, False, 0)
-
+        self.day_label.get_style_context().add_class("day-title")
         self.holiday_label = Gtk.Label(xalign=0)
         self.holiday_label.get_style_context().add_class("holiday-chip")
-        side.pack_start(self.holiday_label, False, False, 0)
+        heading.pack_start(self.day_label, False, False, 0)
+        heading.pack_start(self.holiday_label, False, False, 0)
+        side.pack_start(heading, False, False, 0)
 
-        self.entry_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        side.pack_start(self._section_label("BOOKED"), False, False, 0)
+        self.entry_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scroller.set_size_request(-1, 120)
+        scroller.set_size_request(-1, 118)
         scroller.add(self.entry_box)
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         card.get_style_context().add_class("card")
-        card.set_border_width(8)
         card.pack_start(scroller, True, True, 0)
         side.pack_start(card, False, False, 0)
 
-        add_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self.time_input = Gtk.Entry(placeholder_text="09:00")
-        self.time_input.set_width_chars(5)
-        self.time_input.set_max_width_chars(5)
-        self.time_input.connect("activate", self._on_add_entry)
-        self.title_input = Gtk.Entry(placeholder_text="Book something...")
+        side.pack_start(self._section_label("NEW ENTRY"), False, False, 0)
+        self.title_input = Gtk.Entry(placeholder_text="What is happening?")
         self.title_input.connect("activate", self._on_add_entry)
-        add_button = Gtk.Button(label="+")
+        side.pack_start(self.title_input, False, False, 0)
+
+        add_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        add_row.pack_start(self._build_time_chooser(), False, False, 0)
+        self.all_day_toggle = Gtk.CheckButton(label=ALL_DAY_LABEL)
+        self.all_day_toggle.get_style_context().add_class("all-day")
+        self.all_day_toggle.connect("toggled", self._on_all_day_toggled)
+        add_row.pack_start(self.all_day_toggle, False, False, 0)
+        add_button = Gtk.Button(label="Add")
         add_button.get_style_context().add_class("add")
         add_button.connect("clicked", self._on_add_entry)
-        add_row.pack_start(self.time_input, False, False, 0)
-        add_row.pack_start(self.title_input, True, True, 0)
-        add_row.pack_start(add_button, False, False, 0)
+        add_row.pack_end(add_button, False, False, 0)
         side.pack_start(add_row, False, False, 0)
 
-        notes_label = Gtk.Label(label="notes", xalign=0)
-        notes_label.get_style_context().add_class("sub")
-        side.pack_start(notes_label, False, False, 0)
-
+        side.pack_start(self._section_label("NOTES"), False, False, 0)
         self.notes_view = Gtk.TextView()
         self.notes_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         self.notes_view.get_buffer().connect("changed", self._on_note_changed)
+        self.notes_placeholder = Gtk.Label(label=NOTES_PLACEHOLDER, xalign=0, yalign=0)
+        self.notes_placeholder.get_style_context().add_class("placeholder")
+        overlay = Gtk.Overlay()
+        overlay.add(self.notes_view)
+        overlay.add_overlay(self.notes_placeholder)
+        overlay.set_overlay_pass_through(self.notes_placeholder, True)
         notes_scroller = Gtk.ScrolledWindow()
         notes_scroller.get_style_context().add_class("notes")
         notes_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        notes_scroller.add(self.notes_view)
+        notes_scroller.set_size_request(-1, 92)
+        notes_scroller.add(overlay)
         side.pack_start(notes_scroller, True, True, 0)
         return side
+
+    def _build_time_chooser(self):
+        self.hour_field = ScrollField(24, 1, DEFAULT_HOUR)
+        self.minute_field = ScrollField(60, MINUTE_STEP, 0)
+        colon = Gtk.Label(label=":")
+        colon.get_style_context().add_class("scroll-colon")
+        self.time_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.time_box.get_style_context().add_class("time-box")
+        self.time_box.pack_start(self.hour_field, False, False, 0)
+        self.time_box.pack_start(colon, False, False, 0)
+        self.time_box.pack_start(self.minute_field, False, False, 0)
+        self.time_box.set_tooltip_text("scroll over the hours and minutes to set a time")
+        return self.time_box
+
+    def _section_label(self, text):
+        label = Gtk.Label(label=text, xalign=0)
+        label.get_style_context().add_class("section")
+        return label
+
+    def _chosen_time(self):
+        if self.all_day_toggle.get_active():
+            return ""
+        return f"{self.hour_field.value:02d}:{self.minute_field.value:02d}"
+
+    def _on_all_day_toggled(self, toggle):
+        self.time_box.set_sensitive(not toggle.get_active())
 
     def _nav_button(self, label, handler):
         button = Gtk.Button(label=label)
@@ -228,10 +307,12 @@ class Panel(Gtk.Window):
 
             button_style = cell["button"].get_style_context()
             number_style = cell["number"].get_style_context()
-            for name in ("outside", "today", "holiday"):
+            for name in ("weekend", "outside", "today", "holiday"):
                 number_style.remove_class(name)
             button_style.remove_class("selected")
 
+            if day.weekday() >= 5:
+                number_style.add_class("weekend")
             if day.month != self.month_start.month:
                 number_style.add_class("outside")
             elif self.holidays.title_for(day, self.config.region):
@@ -242,9 +323,9 @@ class Panel(Gtk.Window):
                 button_style.add_class("selected")
 
             marker_style = cell["marker"].get_style_context()
-            marker_style.remove_class("marker")
-            marker_style.remove_class("marker-hidden")
-            marker_style.add_class("marker" if self.store.has_content(day) else "marker-hidden")
+            marker_style.remove_class("hidden")
+            if not self.store.has_content(day):
+                marker_style.add_class("hidden")
 
     def _refresh_day(self):
         self.day_label.set_text(self.selected.strftime("%a %d %B"))
@@ -256,7 +337,7 @@ class Panel(Gtk.Window):
             self.entry_box.remove(child)
         events = self.store.events(self.selected)
         if not events:
-            placeholder = Gtk.Label(label="nothing booked", xalign=0)
+            placeholder = Gtk.Label(label="Nothing booked yet", xalign=0)
             placeholder.get_style_context().add_class("placeholder")
             self.entry_box.pack_start(placeholder, False, False, 0)
         for event in events:
@@ -267,17 +348,23 @@ class Panel(Gtk.Window):
         buffer.handler_block_by_func(self._on_note_changed)
         buffer.set_text(self.store.note(self.selected))
         buffer.handler_unblock_by_func(self._on_note_changed)
+        self._update_notes_placeholder()
+
+    def _update_notes_placeholder(self):
+        buffer = self.notes_view.get_buffer()
+        self.notes_placeholder.set_visible(buffer.get_char_count() == 0)
 
     def _build_entry_row(self, event):
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        time_label = Gtk.Label(label=event.time or "all day", xalign=0)
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        time_label = Gtk.Label(label=event.time or ALL_DAY_LABEL, xalign=0)
         time_label.get_style_context().add_class("entry-time")
-        time_label.set_width_chars(7)
+        time_label.set_width_chars(8)
         title_label = Gtk.Label(label=event.title, xalign=0)
         title_label.get_style_context().add_class("entry-title")
         title_label.set_line_wrap(True)
         remove = Gtk.Button(label="×")
         remove.get_style_context().add_class("remove")
+        remove.set_valign(Gtk.Align.CENTER)
         remove.connect("clicked", self._on_remove_entry, event)
         row.pack_start(time_label, False, False, 0)
         row.pack_start(title_label, True, True, 0)
@@ -339,23 +426,20 @@ class Panel(Gtk.Window):
         self._refresh_day()
 
     def _on_add_entry(self, _widget):
-        style = self.time_input.get_style_context()
-        style.remove_class("invalid")
+        self.title_input.get_style_context().remove_class("invalid")
         try:
-            self.store.add_event(
-                self.selected, self.time_input.get_text(), self.title_input.get_text()
-            )
+            self.store.add_event(self.selected, self._chosen_time(), self.title_input.get_text())
         except ValueError as error:
             LOG.info("rejected entry: %s", error)
-            style.add_class("invalid")
-            self.time_input.set_tooltip_text(str(error))
+            self.title_input.get_style_context().add_class("invalid")
+            self.title_input.set_tooltip_text(str(error))
             return
         except OSError as error:
             LOG.error("could not save entry: %s", error)
             return
-        self.time_input.set_text("")
-        self.time_input.set_tooltip_text(None)
+        self.title_input.set_tooltip_text(None)
         self.title_input.set_text("")
+        self.title_input.grab_focus()
         self._refresh_day()
         self._refresh_month()
 
@@ -369,6 +453,7 @@ class Panel(Gtk.Window):
         self._refresh_month()
 
     def _on_note_changed(self, _buffer):
+        self._update_notes_placeholder()
         if self.note_timer is not None:
             GLib.source_remove(self.note_timer)
         self.note_timer = GLib.timeout_add(NOTE_SAVE_DELAY_MS, self._save_note)
@@ -382,6 +467,7 @@ class Panel(Gtk.Window):
         except OSError as error:
             LOG.error("could not save note: %s", error)
             return False
+        self._update_notes_placeholder()
         self._refresh_month()
         return False
 

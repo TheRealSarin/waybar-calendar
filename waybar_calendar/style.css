@@ -1,101 +1,223 @@
+@define-color bg rgba(13, 17, 23, 0.92);
+@define-color surface #161b22;
+@define-color border #30363d;
+@define-color fg #e6edf3;
+@define-color muted #7d8590;
+@define-color accent #58a6ff;
+@define-color accent2 #1f6feb;
+@define-color yellow #d29922;
+@define-color warn #f85149;
+
+* {
+    font-family: "JetBrainsMono Nerd Font", "Rubik", sans-serif;
+    font-size: 13px;
+    min-height: 0;
+    border: none;
+    outline: none;
+}
+
 window { background-color: transparent; }
 
-button { outline: none; }
-button:focus { outline: none; }
-
 .panel {
-    background-color: #0d1117;
-    border: 2px solid #30363d;
+    background-color: @bg;
+    border: 1px solid @border;
     border-radius: 16px;
 }
 
-.title { font-size: 15px; font-weight: bold; color: #e6edf3; }
-.sub { font-size: 11px; color: #7d8590; }
+.month-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: @fg;
+}
+
+.day-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: @fg;
+}
+
+.section {
+    font-size: 11px;
+    color: @muted;
+}
 
 .nav {
     background-color: transparent;
     background-image: none;
-    border: none;
     box-shadow: none;
-    color: #7d8590;
+    color: @muted;
     border-radius: 8px;
-    padding: 2px 10px;
-    min-height: 0;
+    padding: 4px 12px;
 }
-.nav:hover { background-color: #161b22; color: #e6edf3; }
 
-.dow { font-size: 11px; color: #7d8590; }
+.nav:hover {
+    background-color: alpha(@accent2, 0.3);
+    color: @fg;
+}
+
+.weekday {
+    font-size: 11px;
+    color: @muted;
+    padding-bottom: 4px;
+}
 
 .day {
     background-color: transparent;
     background-image: none;
-    border: none;
     box-shadow: none;
     border-radius: 10px;
-    padding: 2px;
-    min-width: 36px;
-    min-height: 34px;
+    padding: 0;
+    min-width: 46px;
+    min-height: 42px;
 }
-.day:hover { background-color: #161b22; }
-.day-number { color: #e6edf3; font-size: 13px; }
-.outside { color: #484f58; }
-.today { color: #58a6ff; font-weight: bold; }
-.selected { background-color: rgba(31, 111, 235, 0.45); }
-.holiday { color: #d29922; }
-.marker { font-size: 9px; color: #58a6ff; }
-.marker-hidden { font-size: 9px; color: rgba(0, 0, 0, 0); }
 
-.card { background-color: #161b22; border-radius: 12px; }
-.holiday-chip { font-size: 11px; color: #d29922; }
-.entry-time { color: #58a6ff; font-size: 12px; }
-.entry-title { color: #e6edf3; font-size: 12px; }
-.placeholder { color: #484f58; font-size: 12px; }
+.day:hover { background-color: alpha(@accent2, 0.3); }
+
+.day.selected { background-color: alpha(@accent2, 0.35); }
+
+.day-number { color: @fg; }
+.day-number.weekend { color: @muted; }
+.day-number.outside { color: #484f58; }
+.day-number.holiday { color: @yellow; }
+.day-number.today {
+    color: @accent;
+    font-weight: bold;
+}
+
+.marker {
+    font-size: 9px;
+    color: @accent;
+}
+
+.marker.hidden { color: rgba(0, 0, 0, 0); }
+
+.holiday-chip {
+    font-size: 12px;
+    color: @yellow;
+}
+
+.card {
+    background-color: @surface;
+    border: 1px solid @border;
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.entry-time {
+    color: @accent;
+    font-size: 12px;
+}
+
+.entry-title {
+    color: @fg;
+    font-size: 13px;
+}
+
+.placeholder {
+    color: #484f58;
+    font-size: 12px;
+}
 
 entry {
-    background-color: #0d1117;
+    background-color: @surface;
     background-image: none;
-    color: #e6edf3;
-    border: 1px solid #30363d;
+    color: @fg;
+    border: 1px solid @border;
     border-radius: 8px;
-    padding: 4px 8px;
-    min-height: 0;
+    padding: 7px 10px;
 }
-entry:focus { border-color: #58a6ff; }
-entry.invalid { border-color: #f85149; }
+
+entry:focus { border-color: @accent; }
+entry.invalid { border-color: @warn; }
+
+.time-box {
+    background-color: @surface;
+    border: 1px solid @border;
+    border-radius: 8px;
+    padding: 2px 6px;
+}
+
+.time-box:backdrop { color: @muted; }
+
+.scroll-field { border-radius: 6px; }
+.scroll-field:hover { background-color: alpha(@accent2, 0.3); }
+
+.scroll-value {
+    color: @fg;
+    padding: 5px 7px;
+}
+
+.scroll-colon { color: @muted; }
+
+.all-day {
+    color: @muted;
+    padding: 0;
+}
+
+.all-day:hover { color: @fg; }
+
+check {
+    background-color: @surface;
+    background-image: none;
+    border: 1px solid @border;
+    border-radius: 5px;
+    min-width: 14px;
+    min-height: 14px;
+    margin-right: 6px;
+}
+
+check:checked {
+    background-color: @accent2;
+    border-color: @accent2;
+    color: #ffffff;
+}
 
 .add {
-    background-color: #1f6feb;
+    background-color: @accent2;
     background-image: none;
-    border: none;
     box-shadow: none;
     color: #ffffff;
     border-radius: 8px;
-    padding: 4px 12px;
-    min-height: 0;
+    padding: 7px 16px;
 }
-.add:hover { background-color: #388bfd; }
+
+.add:hover { background-color: @accent; }
 
 .remove {
     background-color: transparent;
     background-image: none;
-    border: none;
     box-shadow: none;
-    color: #7d8590;
-    padding: 0 6px;
-    min-height: 0;
+    color: @muted;
+    border-radius: 6px;
+    padding: 0 8px;
     min-width: 0;
 }
-.remove:hover { color: #f85149; }
 
-textview, textview text {
-    background-color: #0d1117;
-    color: #e6edf3;
-    caret-color: #58a6ff;
+.remove:hover {
+    background-color: alpha(@warn, 0.2);
+    color: @warn;
 }
+
+textview {
+    background-color: transparent;
+    color: @fg;
+    caret-color: @accent;
+}
+
+textview text {
+    background-color: transparent;
+    color: @fg;
+}
+
 scrolledwindow.notes {
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    padding: 4px;
+    background-color: @surface;
+    border: 1px solid @border;
+    border-radius: 12px;
+    padding: 10px 12px;
 }
 
-separator { background-color: #21262d; min-width: 1px; min-height: 1px; }
+separator {
+    background-color: @border;
+    min-width: 1px;
+    min-height: 1px;
+}
